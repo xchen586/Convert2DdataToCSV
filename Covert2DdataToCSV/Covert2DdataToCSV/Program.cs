@@ -61,16 +61,18 @@ namespace Covert2DdataToCSV
             foreach (var fileName in fileNames)
             {
                 Console.WriteLine(fileName);
-                uint[,] arrays = Read2DUnsignedIntArrayFromBinaryFile(fileName, rows, cols);
+                //uint[,] arrays = Read2DUnsignedInt32ArrayFromBinaryFile(fileName, rows, cols);
+                ushort[,] arrays = Read2DUnsignedInt16ArrayFromBinaryFile(fileName, rows, cols);
                 string newfile = $"{fileName}.csv";
 
-                SaveRegionPointsCloudToFile(newfile, arrays, rows, cols);
+                //SaveRegionPoints32CloudToFile(newfile, arrays, rows, cols);
+                SaveRegionPoints16CloudToFile(newfile, arrays, rows, cols);
             }
 
             return;
         }
 
-        static uint[,] Read2DUnsignedIntArrayFromBinaryFile(string filePath, int rows, int cols)
+        static uint[,] Read2DUnsignedInt32ArrayFromBinaryFile(string filePath, int rows, int cols)
         {
             uint[,] result = new uint[rows, cols];
 
@@ -83,6 +85,25 @@ namespace Covert2DdataToCSV
                     for (int j = 0; j < cols; j++)
                     {
                         result[i, j] = reader.ReadUInt32();  // Reading each 32-bit unsigned integer
+                    }
+                }
+            }
+
+            return result;
+        }
+        static ushort[,] Read2DUnsignedInt16ArrayFromBinaryFile(string filePath, int rows, int cols)
+        {
+            ushort[,] result = new ushort[rows, cols];
+
+            // Read the binary file
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (BinaryReader reader = new BinaryReader(fs))
+            {
+                for (int i = 0; i < rows; i++)
+                {
+                    for (int j = 0; j < cols; j++)
+                    {
+                        result[i, j] = reader.ReadUInt16();  // Reading each 16-bit unsigned integer
                     }
                 }
             }
@@ -132,7 +153,7 @@ namespace Covert2DdataToCSV
             }
         }
 
-        private static void SaveRegionPointsCloudToFile(string pointCloudPath, uint[,] regions, int outputWidth, int outputHeight)
+        private static void SaveRegionPoints32CloudToFile(string pointCloudPath, uint[,] regions, int outputWidth, int outputHeight)
         {
             int infoWidth = regions.GetLength(0);
             int infoHeight = regions.GetLength(1);
@@ -182,6 +203,59 @@ namespace Covert2DdataToCSV
                     }
                 }
             }
+            SavePointCloud(pointCloudPath, pcList);
+        }
+
+        private static void SaveRegionPoints16CloudToFile(string pointCloudPath, ushort[,] regions, int outputWidth, int outputHeight)
+        {
+            int infoWidth = regions.GetLength(0);
+            int infoHeight = regions.GetLength(1);
+            float xOutputRatio = (float)outputWidth / infoWidth;
+            float yOutputRatio = (float)outputHeight / infoHeight;
+
+            List<PointXYZRGB> pcList = new List<PointXYZRGB>();
+            Color color = Color.Orange;
+            for (int i = 0; i < infoWidth; i++)
+            {
+                for (int j = 0; j < infoHeight; j++)
+                {
+                    if (regions[i, j] != 0) // Check for non-zero values
+                    {
+                        bool isExtend = false; // Assuming 'isExtend' logic remains unchanged
+                        if (isExtend)
+                        {
+                            int xStep = (int)xOutputRatio;
+                            int yStep = (int)yOutputRatio;
+                            int xStart = (int)(i * xOutputRatio + 1);
+                            int xEnd = xStart + xStep;
+                            int yStart = (int)(j * yOutputRatio + 1);
+                            int yEnd = yStart + yStep;
+
+                            for (int m = xStart; m < xEnd; m++)
+                            {
+                                for (int n = yStart; n < yEnd; n++)
+                                {
+                                    float xValue = m;
+                                    float yValue = n;
+                                    float zValue = regions[i, j];  // ushort instead of uint
+                                    PointXYZRGB pc = new PointXYZRGB(xValue, yValue, zValue, color.R, color.G, color.B);
+                                    pcList.Add(pc);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            float xValue = i * xOutputRatio;
+                            float yValue = j * yOutputRatio;
+                            float zValue = regions[i, j]; // ushort instead of uint
+
+                            PointXYZRGB pc = new PointXYZRGB(xValue, yValue, zValue, color.R, color.G, color.B);
+                            pcList.Add(pc);
+                        }
+                    }
+                }
+            }
+
             SavePointCloud(pointCloudPath, pcList);
         }
     }
